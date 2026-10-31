@@ -1,0 +1,51 @@
+name: 'AI Model Cacher'
+description: 'Downloads, hashes, caches local AI/LLM model weight for fast CI/CD testing.'
+author: 'as-designer'
+
+inputs:
+  model-url:
+    description: 'The direct URL to download the model weights (e.g., Hugging Face resolve URL).'
+    required: true
+  model-path:
+    description: 'The local path where the model file should be saved (e.g., ./models/phi3.gguf).'
+    required: true
+  cache-key-prefix:
+    description: 'Custom prefix for the cache key.'
+    required: false
+    default: 'ai-model'
+
+outputs:
+  cache-hit:
+    description: 'Whether the model was successfully restored from the cache ("true" or "false").'
+    value: ${{ steps.cache-model.outputs.cache-hit }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Generate Cache Key
+      id: keygen
+      shell: bash
+      run: |
+        URL_HASH=$(echo -n "${{ inputs.model-url }}" | sha256sum | awk '{print $1}')
+        echo "key=${{ inputs.cache-key-prefix }}-$URL_HASH" >> $GITHUB_OUTPUT
+
+    - name: Restore Model Cache
+      id: cache-model
+      uses: actions/cache@v6.1.0
+      with:
+        path: ${{ inputs.model-path }}
+        key: ${{ steps.keygen.outputs.key }}
+
+    - name: Download Model Weight
+      if: steps.cache-model.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        TARGET_DIR=$(dirname "${{ inputs.model-path }}")
+        mkdir -p "$TARGET_DIR"
+        echo "Cache miss. Downloading model from ${{ inputs.model-url }}..."
+        curl -L -o "${{ inputs.model-path }}" "${{ inputs.model-url }}"
+        echo "Download complete."
+
+branding:
+  icon: 'cpu'
+  color: 'purple'
