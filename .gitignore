@@ -1,0 +1,10 @@
+# Ignore downloaded models during local testing
+models/
+*.gguf
+*.safetensors
+*.onnx
+*.bin
+
+# OS files
+.DS_Store
+Thumbs.db
